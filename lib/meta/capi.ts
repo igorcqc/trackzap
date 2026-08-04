@@ -10,7 +10,8 @@ export type SendMetaEventInput = {
   eventName: string; // "Contact" | "Lead" | "Purchase" | custom
   eventId?: string; // for dedup with a browser Pixel firing the same event
   phone?: string | null; // E.164, no "+"
-  clickId?: string | null; // fbclid-derived fbc, or raw fbclid
+  clickId?: string | null; // fbc (fbclid-derived), for link-sourced leads
+  ctwaClickId?: string | null; // ctwa_clid, for native Click-to-WhatsApp ad leads
   browserId?: string | null; // fbp cookie
   clientIpAddress?: string | null;
   clientUserAgent?: string | null;
@@ -46,6 +47,7 @@ export async function sendMetaEvent(
   if (input.clientUserAgent) userData.client_user_agent = input.clientUserAgent;
   if (input.browserId) userData.fbp = input.browserId;
   if (input.clickId) userData.fbc = input.clickId;
+  if (input.ctwaClickId) userData.ctwa_clid = input.ctwaClickId;
 
   const payload = {
     data: [

@@ -17,14 +17,15 @@ export async function GET(
   const { slug } = await params;
   const supabase = createSupabaseServiceClient();
 
-  const { data: link } = await supabase
-    .from("links")
+  const { data: source } = await supabase
+    .from("sources")
     .select("*")
     .eq("slug", slug)
+    .eq("type", "link")
     .eq("is_active", true)
     .maybeSingle();
 
-  if (!link) {
+  if (!source) {
     return NextResponse.redirect(new URL("/link-invalido", request.url));
   }
 
@@ -36,7 +37,7 @@ export async function GET(
   const code = generateTrackingCode();
 
   await supabase.from("clicks").insert({
-    link_id: link.id,
+    source_id: source.id,
     code,
     fbclid,
     fbp: cookieFbp,
@@ -51,8 +52,8 @@ export async function GET(
     user_agent: request.headers.get("user-agent"),
   });
 
-  const message = buildPrefilledMessage(link.prefilled_message, code);
-  const waUrl = buildWhatsAppUrl(link.destination_phone, message);
+  const message = buildPrefilledMessage(source.prefilled_message ?? "Olá!", code);
+  const waUrl = buildWhatsAppUrl(source.destination_phone!, message);
 
   return NextResponse.redirect(waUrl);
 }

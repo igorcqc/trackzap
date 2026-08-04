@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { markConversion } from "./actions";
 
-export function ConversionForm({ conversationId }: { conversationId: string }) {
+export function ConversionForm({ workspaceId, conversationId }: { workspaceId: string; conversationId: string }) {
   const [open, setOpen] = useState(false);
 
   if (!open) {
@@ -20,7 +20,7 @@ export function ConversionForm({ conversationId }: { conversationId: string }) {
   return (
     <form
       action={async (formData) => {
-        await markConversion(formData);
+        await markConversion(workspaceId, formData);
         setOpen(false);
       }}
       className="flex shrink-0 flex-wrap items-center gap-2"
