@@ -49,7 +49,9 @@ reaproveitando `ctwa_clid` ou `fbc`/`fbp` daquela conversa.
 6. No Meta App (produto WhatsApp > Configuração > Webhook), registre a URL
    `https://SEU-DOMINIO/api/webhook/whatsapp` com o verify token definido em
    `WHATSAPP_WEBHOOK_VERIFY_TOKEN` (compartilhado entre todos os workspaces desta instalação), e
-   assine o campo `messages`.
+   assine o campo `messages`. Copie o **App Secret** desse Meta App (Configurações do app > Básico)
+   para `WHATSAPP_APP_SECRET` na Vercel: o webhook confere a assinatura `X-Hub-Signature-256` e
+   recusa qualquer POST sem ela. Com mais de um Meta App, separe os secrets por vírgula.
 7. Em **Origens**, crie um link rastreador e/ou cadastre suas campanhas nativas.
 
 ## Estrutura
