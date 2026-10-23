@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "crypto";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 import { extractTrackingCode } from "@/lib/tracking";
 import { sendMetaEvent } from "@/lib/meta/capi";
@@ -48,13 +48,45 @@ type WhatsAppWebhookPayload = {
   }>;
 };
 
+// --- Signature check -------------------------------------------------------
+// Meta signs every POST with HMAC-SHA256 of the raw body using the App Secret
+// (header `X-Hub-Signature-256: sha256=<hex>`). Without this check anyone who
+// knows the URL could forge conversations and fire fake CAPI events.
+// WHATSAPP_APP_SECRET accepts a comma-separated list, one per client Meta App.
+// docs: https://developers.facebook.com/docs/graph-api/webhooks/getting-started#validate-payloads
+function hasValidSignature(rawBody: string, header: string | null): boolean {
+  const secrets = (process.env.WHATSAPP_APP_SECRET ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (!secrets.length || !header?.startsWith("sha256=")) return false;
+  const received = Buffer.from(header.slice("sha256=".length), "hex");
+  return secrets.some((secret) => {
+    const expected = createHmac("sha256", secret).update(rawBody, "utf8").digest();
+    return received.length === expected.length && timingSafeEqual(received, expected);
+  });
+}
+
 // --- POST: inbound WhatsApp events -----------------------------------------
 // Every inbound message a customer sends lands here. Attribution is resolved
 // in priority order: `referral.ctwa_clid` (native Click-to-WhatsApp ad, sent
 // automatically by Meta — the strongest signal) > a tracking code embedded
 // in the message body by our own /r/<slug> redirect > unidentified.
 export async function POST(request: NextRequest) {
-  const payload = (await request.json()) as WhatsAppWebhookPayload;
+  const rawBody = await request.text();
+  if (!hasValidSignature(rawBody, request.headers.get("x-hub-signature-256"))) {
+    if (!process.env.WHATSAPP_APP_SECRET) {
+      console.error("WHATSAPP_APP_SECRET ausente: webhook recusando todos os eventos.");
+    }
+    return new NextResponse("Forbidden", { status: 403 });
+  }
+
+  let payload: WhatsAppWebhookPayload;
+  try {
+    payload = JSON.parse(rawBody) as WhatsAppWebhookPayload;
+  } catch {
+    return new NextResponse("Bad Request", { status: 400 });
+  }
   const supabase = createSupabaseServiceClient();
 
   for (const entry of payload.entry ?? []) {
